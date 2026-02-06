@@ -1,0 +1,80 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { prisma } from "@/lib/db";
+import { authOptions } from "@/lib/auth";
+import { z } from "zod";
+
+const createClientSchema = z.object({
+  name: z.string().min(1, "Client name is required"),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  website: z.string().url().optional(),
+  industry: z.string().optional(),
+});
+
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const clients = await prisma.client.findMany({
+      include: {
+        _count: {
+          select: { projects: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const clientsWithCounts = clients.map((client) => ({
+      ...client,
+      projectsCount: client._count.projects,
+    }));
+
+    return NextResponse.json(clientsWithCounts);
+  } catch (error) {
+    console.error("Error fetching clients:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch clients" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const validatedData = createClientSchema.parse(body);
+
+    const client = await prisma.client.create({
+      data: {
+        ...validatedData,
+        createdById: session.user.id,
+      },
+    });
+
+    return NextResponse.json(client, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: error.errors },
+        { status: 400 },
+      );
+    }
+
+    console.error("Error creating client:", error);
+    return NextResponse.json(
+      { error: "Failed to create client" },
+      { status: 500 },
+    );
+  }
+}

@@ -1,0 +1,295 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  accounts      Account[]
+  sessions      Session[]
+  clients       Client[]
+  tasks         Task[]    @relation("TaskCreator")
+  notes         Note[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+  website     String?
+  industry    String?
+  status      String   @default("active")
+  healthScore Int      @default(80)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+
+  createdBy      User             @relation(fields: [createdById], references: [id])
+  contacts       Contact[]
+  projects       Project[]
+  tasks          Task[]
+  notes          Note[]
+  scans          AutomationScan[]
+  invoices       Invoice[]
+  subscriptions  Subscription[]
+  expenses       Expense[]
+
+  @@index([status])
+  @@index([healthScore])
+}
+
+model AutomationScan {
+  id        String   @id @default(cuid())
+  clientId  String
+  results   String   // JSON array of automation opportunities
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+model Contact {
+  id        String  @id @default(cuid())
+  clientId  String
+  name      String
+  email     String?
+  phone     String?
+  role      String?
+  isPrimary Boolean @default(false)
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        String    // "Website Build", "Automation Build", "Custom"
+  status      String    @default("planning")
+  budget      Float?
+  startDate   DateTime?
+  endDate     DateTime?
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  clientId    String
+
+  client   Client    @relation(fields: [clientId], references: [id])
+  tasks    Task[]
+  notes    Note[]
+  expenses Expense[]
+
+  @@index([status])
+  @@index([clientId])
+  @@index([dueDate])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("todo")
+  priority    String    @default("medium")
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  projectId   String?
+  clientId    String?
+  createdById String
+
+  project Project? @relation(fields: [projectId], references: [id])
+  client  Client?  @relation(fields: [clientId], references: [id])
+  creator User    @relation("TaskCreator", fields: [createdById], references: [id])
+  notes   Note[]
+
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Note {
+  id        String    @id @default(cuid())
+  content   String
+  type      String    // "call", "email", "meeting", "general"
+  clientId  String?
+  projectId String?
+  taskId    String?
+  createdById String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  client  Client?  @relation(fields: [clientId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id])
+  task    Task?    @relation(fields: [taskId], references: [id])
+  creator User     @relation(fields: [createdById], references: [id])
+
+  @@index([type])
+  @@index([createdAt])
+  @@index([clientId])
+}
+
+model Invoice {
+  id            String    @id @default(cuid())
+  invoiceNumber String    @unique
+  clientId      String
+  amount        Float
+  status        String    @default("draft") // draft, sent, paid, overdue, cancelled
+  dueDate       DateTime?
+  paidDate      DateTime?
+  issuedDate    DateTime  @default(now())
+  description   String?
+  lineItems     String    // JSON array of line items
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model Subscription {
+  id             String    @id @default(cuid())
+  clientId       String
+  name           String
+  description    String?
+  amount         Float
+  billingCadence String    @default("monthly") // monthly, quarterly, annual
+  status         String    @default("active") // active, paused, cancelled
+  startDate      DateTime  @default(now())
+  nextBilling    DateTime
+  endDate        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([nextBilling])
+}
+
+model Expense {
+  id          String    @id @default(cuid())
+  category    String
+  amount      Float
+  description String
+  date        DateTime  @default(now())
+  receiptUrl  String?
+  projectId   String?
+  clientId    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project      Project?      @relation(fields: [projectId], references: [id])
+  client       Client?       @relation(fields: [clientId], references: [id])
+  transactions Transaction[]
+
+  @@index([category])
+  @@index([date])
+  @@index([clientId])
+}
+
+model Prospect {
+  id               String    @id @default(cuid())
+  firstName        String
+  lastName         String?
+  email            String?
+  linkedinUrl      String?
+  jobTitle         String?
+  company          String?
+  industry         String?
+  companySize      String?
+  persona          String?   // owner_operator, ops_manager, sales_revops, admin_manager
+  phone            String?
+  personalizedLine String?
+  source           String?   @default("csv_import") // csv_import, clay, manual
+  status           String    @default("new")        // new, contacted, replied, booked, converted, unresponsive
+  outreachChannel  String?   // email, linkedin, both
+  campaignId       String?
+  notes            String?
+  importBatch      String?   // groups rows from same CSV upload
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status])
+  @@index([persona])
+  @@index([importBatch])
+  @@index([email])
+}
+
+model Transaction {
+  id             String   @id @default(cuid())
+  type           String   // invoice_payment, subscription_payment, expense
+  amount         Float
+  date           DateTime @default(now())
+  status         String   @default("completed") // completed, pending, failed
+  description    String?
+  invoiceId      String?
+  subscriptionId String?
+  expenseId      String?
+  createdAt      DateTime @default(now())
+
+  invoice      Invoice?      @relation(fields: [invoiceId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  expense      Expense?      @relation(fields: [expenseId], references: [id])
+
+  @@index([type])
+  @@index([date])
+  @@index([status])
+}
