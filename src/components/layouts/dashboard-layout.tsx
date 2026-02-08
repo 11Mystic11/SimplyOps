@@ -17,6 +17,7 @@ import {
   Moon,
   Rocket,
   MessageSquare,
+  Receipt,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
@@ -28,6 +29,7 @@ const navigation = [
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Activity', href: '/activity', icon: MessageSquare },
   { name: 'Finance', href: '/finance', icon: CreditCard },
+  { name: 'Billing', href: '/billing', icon: Receipt },
 ]
 
 interface DashboardLayoutProps {

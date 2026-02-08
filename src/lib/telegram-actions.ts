@@ -132,7 +132,7 @@ MRR: $${mrr.toFixed(2)}`,
     }
 
     const client = await prisma.client.findFirst({
-      where: { name: { contains: clientName, mode: "insensitive" } },
+      where: { name: { contains: clientName } },
     });
 
     if (!client) {
@@ -172,7 +172,7 @@ MRR: $${mrr.toFixed(2)}`,
 
     if (data.clientName) {
       const client = await prisma.client.findFirst({
-        where: { name: { contains: data.clientName as string, mode: "insensitive" } },
+        where: { name: { contains: data.clientName as string } },
       });
       if (client) {
         whereClause.clientId = client.id;
@@ -224,7 +224,7 @@ MRR: $${mrr.toFixed(2)}`,
     }
 
     const project = await prisma.project.findFirst({
-      where: { name: { contains: searchTerm, mode: "insensitive" } },
+      where: { name: { contains: searchTerm } },
       include: {
         client: { select: { name: true } },
         _count: { select: { tasks: true, notes: true } },
@@ -278,7 +278,7 @@ Notes: ${project._count.notes}`,
     // If projectName is provided, find the project and use its clientId
     if (data.projectName) {
       const project = await prisma.project.findFirst({
-        where: { name: { contains: data.projectName as string, mode: "insensitive" } },
+        where: { name: { contains: data.projectName as string } },
         include: { client: { select: { id: true, name: true } } },
       });
       if (project) {
@@ -292,7 +292,7 @@ Notes: ${project._count.notes}`,
     // If no project but clientName is provided, find the client
     if (!clientId && data.clientName) {
       const client = await prisma.client.findFirst({
-        where: { name: { contains: data.clientName as string, mode: "insensitive" } },
+        where: { name: { contains: data.clientName as string } },
       });
       if (client) {
         clientId = client.id;
@@ -590,7 +590,7 @@ Due: ${invoice.dueDate?.toLocaleDateString()}`,
     // If projectName is provided, find the project and use its clientId
     if (data.projectName) {
       const project = await prisma.project.findFirst({
-        where: { name: { contains: data.projectName as string, mode: "insensitive" } },
+        where: { name: { contains: data.projectName as string } },
         include: { client: { select: { id: true, name: true } } },
       });
       if (project) {
@@ -603,7 +603,7 @@ Due: ${invoice.dueDate?.toLocaleDateString()}`,
     // If no project but clientName is provided, find the client
     if (!clientId && data.clientName) {
       const client = await prisma.client.findFirst({
-        where: { name: { contains: data.clientName as string, mode: "insensitive" } },
+        where: { name: { contains: data.clientName as string } },
       });
       if (client) {
         clientId = client.id;
@@ -614,7 +614,7 @@ Due: ${invoice.dueDate?.toLocaleDateString()}`,
     let taskId: string | undefined;
     if (data.taskTitle) {
       const task = await prisma.task.findFirst({
-        where: { title: { contains: data.taskTitle as string, mode: "insensitive" } },
+        where: { title: { contains: data.taskTitle as string } },
       });
       if (task) {
         taskId = task.id;

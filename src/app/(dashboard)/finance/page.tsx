@@ -14,6 +14,7 @@ import {
   Calendar,
   Download,
   Eye,
+  Receipt,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -135,11 +136,17 @@ export default function FinancePage() {
           <CardDescription>Common financial operations</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-2 md:grid-cols-4">
+          <div className="grid gap-2 md:grid-cols-5">
+            <Button variant="outline" asChild className="justify-start">
+              <Link href="/billing">
+                <Receipt className="mr-2 h-4 w-4" />
+                Smart Invoice
+              </Link>
+            </Button>
             <Button variant="outline" asChild className="justify-start">
               <Link href="/invoices/new">
                 <DollarSign className="mr-2 h-4 w-4" />
-                Create Invoice
+                Quick Invoice
               </Link>
             </Button>
             <Button variant="outline" asChild className="justify-start">

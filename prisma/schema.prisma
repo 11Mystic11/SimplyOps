@@ -50,6 +50,7 @@ model User {
   clients       Client[]
   tasks         Task[]    @relation("TaskCreator")
   notes         Note[]
+  quotes        Quote[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -63,17 +64,20 @@ model VerificationToken {
 }
 
 model Client {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  phone       String?
-  website     String?
-  industry    String?
-  status      String   @default("active")
-  healthScore Int      @default(80)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdById String
+  id               String   @id @default(cuid())
+  name             String
+  email            String?
+  phone            String?
+  website          String?
+  industry         String?
+  status           String   @default("active")
+  healthScore      Int      @default(80)
+  stripeCustomerId String?
+  billingEmail     String?
+  billingMode      String   @default("monthly_invoice") // monthly_invoice, subscription
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  createdById      String
 
   createdBy      User             @relation(fields: [createdById], references: [id])
   contacts       Contact[]
@@ -84,6 +88,8 @@ model Client {
   invoices       Invoice[]
   subscriptions  Subscription[]
   expenses       Expense[]
+  quotes         Quote[]
+  invoiceMirrors InvoiceMirror[]
 
   @@index([status])
   @@index([healthScore])
@@ -113,20 +119,22 @@ model Contact {
 }
 
 model Project {
-  id          String    @id @default(cuid())
-  name        String
-  description String?
-  type        String    // "Website Build", "Automation Build", "Custom"
-  status      String    @default("planning")
-  budget      Float?
-  startDate   DateTime?
-  endDate     DateTime?
-  dueDate     DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  clientId    String
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  type            String    // "Website Build", "Automation Build", "Custom"
+  status          String    @default("planning")
+  budget          Float?
+  startDate       DateTime?
+  endDate         DateTime?
+  dueDate         DateTime?
+  billingStatus   String    @default("unbilled") // unbilled, billed
+  billedInvoiceId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  clientId        String
 
-  client   Client    @relation(fields: [clientId], references: [id])
+  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   tasks    Task[]
   notes    Note[]
   expenses Expense[]
@@ -134,6 +142,7 @@ model Project {
   @@index([status])
   @@index([clientId])
   @@index([dueDate])
+  @@index([billingStatus])
 }
 
 model Task {
@@ -149,8 +158,8 @@ model Task {
   clientId    String?
   createdById String
 
-  project Project? @relation(fields: [projectId], references: [id])
-  client  Client?  @relation(fields: [clientId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client  Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   creator User    @relation("TaskCreator", fields: [createdById], references: [id])
   notes   Note[]
 
@@ -169,9 +178,9 @@ model Note {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  client  Client?  @relation(fields: [clientId], references: [id])
-  project Project? @relation(fields: [projectId], references: [id])
-  task    Task?    @relation(fields: [taskId], references: [id])
+  client  Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   creator User     @relation(fields: [createdById], references: [id])
 
   @@index([type])
@@ -225,24 +234,31 @@ model Subscription {
 }
 
 model Expense {
-  id          String    @id @default(cuid())
-  category    String
-  amount      Float
-  description String
-  date        DateTime  @default(now())
-  receiptUrl  String?
-  projectId   String?
-  clientId    String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  category          String
+  amount            Float
+  description       String
+  date              DateTime  @default(now())
+  receiptUrl        String?
+  vendor            String?
+  whoPaid           String    @default("you_paid") // you_paid, client_paid, included_in_retainer
+  passThroughPolicy String    @default("pass_through_at_cost") // pass_through_at_cost, markup_percent, flat_fee
+  markupPercent     Float     @default(0)
+  billingStatus     String    @default("unbilled") // unbilled, billed
+  billedInvoiceId   String?
+  projectId         String?
+  clientId          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  project      Project?      @relation(fields: [projectId], references: [id])
-  client       Client?       @relation(fields: [clientId], references: [id])
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client       Client?       @relation(fields: [clientId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
   @@index([category])
   @@index([date])
   @@index([clientId])
+  @@index([billingStatus])
 }
 
 model Prospect {
@@ -292,4 +308,57 @@ model Transaction {
   @@index([type])
   @@index([date])
   @@index([status])
+}
+
+model Quote {
+  id                 String    @id @default(cuid())
+  clientId           String
+  createdById        String
+  status             String    @default("proposed") // proposed, locked, invoiced, cancelled
+  lines              String    // JSON array of QuoteLine objects
+  subtotal           Float     @default(0)
+  discount           Float     @default(0)
+  total              Float     @default(0)
+  currency           String    @default("usd")
+  dueDate            DateTime?
+  netTermsDays       Int?
+  clientMemo         String?
+  internalMemo       String?
+  billableProjectIds String?   // JSON array of project IDs
+  billableExpenseIds String?   // JSON array of expense IDs
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  invoiceMirror InvoiceMirror?
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model InvoiceMirror {
+  id               String    @id @default(cuid())
+  clientId         String
+  quoteId          String    @unique
+  stripeInvoiceId  String    @unique
+  stripeCustomerId String
+  status           String    @default("draft") // draft, open, paid, void, uncollectible
+  subtotal         Float
+  total            Float
+  hostedInvoiceUrl String?
+  finalizedAt      DateTime?
+  emailSentAt      DateTime?
+  emailRecipient   String?
+  idempotencyKey   String    @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  quote  Quote  @relation(fields: [quoteId], references: [id])
+
+  @@index([clientId])
+  @@index([status])
+  @@index([stripeInvoiceId])
 }
