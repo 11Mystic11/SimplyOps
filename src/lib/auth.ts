@@ -25,82 +25,83 @@ export const authOptions: AuthOptions = {
         // HARDCODED BYPASS for Admin User (As requested)
         if (credentials.email === "admin@simplyops.com" && credentials.password === "admin123") {
           console.log("[AUTH] Admin bypass triggered: Success (Ensuring DB user presence)");
-          const adminUser = await prisma.user.upsert({
-            where: { email: "admin@simplyops.com" },
-            update: { name: "Admin Fixed" },
-            create: {
+          try {
+            const adminUser = await prisma.user.upsert({
+              where: { email: "admin@simplyops.com" },
+              update: { name: "Admin Fixed" },
+              create: {
+                id: "admin-fixed-id",
+                email: "admin@simplyops.com",
+                name: "Admin Fixed",
+                password: await bcrypt.hash("admin123", 10),
+              },
+            });
+            return {
+              id: adminUser.id,
+              name: adminUser.name,
+              email: adminUser.email,
+            };
+          } catch (e) {
+            console.error("[AUTH] Admin bypass: DB Upsert failed, using static ID", e);
+            return {
               id: "admin-fixed-id",
-              email: "admin@simplyops.com",
               name: "Admin Fixed",
-              password: await bcrypt.hash("admin123", 10),
-            },
-          });
-          return {
-            id: adminUser.id,
-            name: adminUser.name,
-            email: adminUser.email,
-          };
-        } catch (e) {
-          console.error("[AUTH] Admin bypass: DB Upsert failed, using static ID", e);
-          return {
-            id: "admin-fixed-id",
-            name: "Admin Fixed",
-            email: "admin@simplyops.com",
-          };
+              email: "admin@simplyops.com",
+            };
+          }
         }
-      }
 
         try {
-        // Standard DB authentication (fallback)
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
+          // Standard DB authentication (fallback)
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+          });
 
-        if(!user || !user.password) {
-      console.log("[AUTH] No user found in DB or missing password");
-      return null;
-    }
+          if (!user || !user.password) {
+            console.log("[AUTH] No user found in DB or missing password");
+            return null;
+          }
 
           const isValidPassword = await bcrypt.compare(
-      credentials.password,
-      user.password,
-    );
+            credentials.password,
+            user.password,
+          );
 
-  if(!isValidPassword) {
-    console.log("[AUTH] Invalid password comparison result");
-    return null;
-  }
+          if (!isValidPassword) {
+            console.log("[AUTH] Invalid password comparison result");
+            return null;
+          }
 
           console.log("[AUTH] DB Authentication successful for:", user.email);
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-  };
-} catch (error) {
-  console.error("[AUTH] DB Connection Error (Bypass active):", error);
-  // If DB fails, we already checked the hardcoded credentials above
-  return null;
-}
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          };
+        } catch (error) {
+          console.error("[AUTH] DB Connection Error (Bypass active):", error);
+          // If DB fails, we already checked the hardcoded credentials above
+          return null;
+        }
       },
     }),
   ],
-pages: {
-  signIn: "/auth/signin",
+  pages: {
+    signIn: "/auth/signin",
   },
-callbacks: {
+  callbacks: {
     async jwt({ token, user }) {
-    if (user) {
-      token.id = user.id;
-    }
-    return token;
-  },
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
     async session({ session, token }) {
-    if (session.user) {
-      session.user.id = token.id as string;
-    }
-    return session;
+      if (session.user) {
+        session.user.id = token.id as string;
+      }
+      return session;
+    },
   },
-},
-secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET,
 };
