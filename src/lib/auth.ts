@@ -15,51 +15,71 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("[AUTH] Login attempt for:", credentials?.email);
+
         if (!credentials?.email || !credentials.password) {
+          console.log("[AUTH] Missing credentials");
           return null;
         }
 
-        // Self-healing: Ensure at least the admin user exists in the DB
-        // This is useful for first-time deployments on Vercel where seed might not have run
-        if (credentials.email === "admin@simplyops.com") {
-          const adminExists = await prisma.user.findUnique({
-            where: { email: "admin@simplyops.com" },
+        try {
+          // Self-healing: Ensure at least the admin user exists in the DB
+          if (credentials.email === "admin@simplyops.com") {
+            const adminExists = await prisma.user.findUnique({
+              where: { email: "admin@simplyops.com" },
+            });
+
+            if (!adminExists) {
+              console.log("[AUTH] Admin missing from DB, creating...");
+              const hashedPassword = await bcrypt.hash("admin123", 10);
+              await prisma.user.create({
+                data: {
+                  email: "admin@simplyops.com",
+                  name: "Admin User",
+                  password: hashedPassword,
+                },
+              });
+              console.log("[AUTH] Admin user created successfully");
+            } else {
+              console.log("[AUTH] Admin user found in DB");
+            }
+          }
+
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
           });
 
-          if (!adminExists) {
-            const hashedPassword = await bcrypt.hash("admin123", 10);
-            await prisma.user.create({
-              data: {
-                email: "admin@simplyops.com",
-                name: "Admin User",
-                password: hashedPassword,
-              },
-            });
+          if (!user) {
+            console.log("[AUTH] No user found with this email");
+            return null;
           }
+
+          if (!user.password) {
+            console.log("[AUTH] User has no password set");
+            return null;
+          }
+
+          console.log("[AUTH] Comparing passwords...");
+          const isValidPassword = await bcrypt.compare(
+            credentials.password,
+            user.password,
+          );
+
+          if (!isValidPassword) {
+            console.log("[AUTH] Invalid password comparison result");
+            return null;
+          }
+
+          console.log("[AUTH] Authentication successful for:", user.email);
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          };
+        } catch (error) {
+          console.error("[AUTH] Error during authentication:", error);
+          throw error;
         }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-        });
-
-        if (!user || !user.password) {
-          return null;
-        }
-
-        const isValidPassword = await bcrypt.compare(
-          credentials.password,
-          user.password,
-        );
-
-        if (!isValidPassword) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-        };
       },
     }),
   ],
