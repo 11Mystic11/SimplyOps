@@ -22,44 +22,27 @@ export const authOptions: AuthOptions = {
           return null;
         }
 
+        // HARDCODED BYPASS for Admin User (As requested)
+        if (credentials.email === "admin@simplyops.com" && credentials.password === "admin123") {
+          console.log("[AUTH] Admin bypass triggered: Success");
+          return {
+            id: "admin-bypass-id",
+            name: "Admin Fixed",
+            email: "admin@simplyops.com",
+          };
+        }
+
         try {
-          // Self-healing: Ensure at least the admin user exists in the DB
-          if (credentials.email === "admin@simplyops.com") {
-            const adminExists = await prisma.user.findUnique({
-              where: { email: "admin@simplyops.com" },
-            });
-
-            if (!adminExists) {
-              console.log("[AUTH] Admin missing from DB, creating...");
-              const hashedPassword = await bcrypt.hash("admin123", 10);
-              await prisma.user.create({
-                data: {
-                  email: "admin@simplyops.com",
-                  name: "Admin User",
-                  password: hashedPassword,
-                },
-              });
-              console.log("[AUTH] Admin user created successfully");
-            } else {
-              console.log("[AUTH] Admin user found in DB");
-            }
-          }
-
+          // Standard DB authentication (fallback)
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
           });
 
-          if (!user) {
-            console.log("[AUTH] No user found with this email");
+          if (!user || !user.password) {
+            console.log("[AUTH] No user found in DB or missing password");
             return null;
           }
 
-          if (!user.password) {
-            console.log("[AUTH] User has no password set");
-            return null;
-          }
-
-          console.log("[AUTH] Comparing passwords...");
           const isValidPassword = await bcrypt.compare(
             credentials.password,
             user.password,
@@ -70,15 +53,16 @@ export const authOptions: AuthOptions = {
             return null;
           }
 
-          console.log("[AUTH] Authentication successful for:", user.email);
+          console.log("[AUTH] DB Authentication successful for:", user.email);
           return {
             id: user.id,
             name: user.name,
             email: user.email,
           };
         } catch (error) {
-          console.error("[AUTH] Error during authentication:", error);
-          throw error;
+          console.error("[AUTH] DB Connection Error (Bypass active):", error);
+          // If DB fails, we already checked the hardcoded credentials above
+          return null;
         }
       },
     }),
