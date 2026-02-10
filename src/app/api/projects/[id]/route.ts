@@ -105,7 +105,16 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    await prisma.project.delete({ where: { id } });
+
+    // Manual cascade: Turso FK constraints use RESTRICT, not CASCADE.
+    await prisma.$transaction(async (tx) => {
+      const taskIds = (await tx.task.findMany({ where: { projectId: id }, select: { id: true } })).map(t => t.id);
+      if (taskIds.length) await tx.note.deleteMany({ where: { taskId: { in: taskIds } } });
+      await tx.note.deleteMany({ where: { projectId: id } });
+      await tx.task.deleteMany({ where: { projectId: id } });
+      await tx.expense.deleteMany({ where: { projectId: id } });
+      await tx.project.delete({ where: { id } });
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
