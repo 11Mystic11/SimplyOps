@@ -59,6 +59,8 @@ const timeAgo = (date: Date) => {
   return `${days}d ago`;
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
