@@ -30,3 +30,27 @@ const createPrismaClient = () => {
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+/**
+ * Ensures the user from the session exists in the DB.
+ * Useful after DB migrations where session state might point to a missing user.
+ */
+export async function ensureAuthenticatedUser(session: any) {
+  if (!session?.user?.email) return null;
+
+  // Upsert the user based on email to ensure they exist with the current ID from session
+  const user = await prisma.user.upsert({
+    where: { email: session.user.email },
+    update: {
+      // Keep existing data but ensure record exists
+      name: session.user.name || undefined
+    },
+    create: {
+      id: session.user.id, // Try to keep the ID from session to avoid orphan references
+      email: session.user.email,
+      name: session.user.name || "User",
+    }
+  });
+
+  return user;
+}

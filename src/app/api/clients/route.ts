@@ -51,10 +51,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createClientSchema.parse(body);
 
+    // Self-healing: Ensure the user exists in the DB before creating the client
+    const user = await import("@/lib/db").then(m => m.ensureAuthenticatedUser(session));
+    const userId = user?.id || session.user.id;
+
     const client = await prisma.client.create({
       data: {
         ...validatedData,
-        createdById: session.user.id,
+        createdById: userId,
       },
     });
 

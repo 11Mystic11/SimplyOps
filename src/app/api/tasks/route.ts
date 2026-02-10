@@ -49,17 +49,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createTaskSchema.parse(body);
 
+    // Self-healing: Ensure user exists
+    const user = await import("@/lib/db").then(m => m.ensureAuthenticatedUser(session));
+    const userId = user?.id || session.user.id;
+
     const task = await prisma.task.create({
       data: {
         title: validatedData.title,
         description: validatedData.description,
-        priority: validatedData.priority ?? "medium",
-        dueDate: validatedData.dueDate
-          ? new Date(validatedData.dueDate)
-          : undefined,
-        projectId: validatedData.projectId || undefined,
-        clientId: validatedData.clientId || undefined,
-        createdById: session.user.id,
+        status: validatedData.status,
+        priority: validatedData.priority,
+        dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
+        projectId: validatedData.projectId,
+        clientId: validatedData.clientId,
+        createdById: userId,
       },
     });
 

@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createProjectSchema.parse(body);
 
+    // Self-healing: Ensure user exists
+    await import("@/lib/db").then(m => m.ensureAuthenticatedUser(session));
+
     const project = await prisma.project.create({
       data: {
         name: validatedData.name,
