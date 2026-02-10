@@ -16,15 +16,22 @@ type ClientWithCounts = Prisma.ClientGetPayload<{
   include: { _count: { select: { projects: true } } };
 }>;
 
+export const dynamic = "force-dynamic";
+
 async function getClients(): Promise<ClientWithCounts[]> {
-  return prisma.client.findMany({
-    include: {
-      _count: {
-        select: { projects: true },
+  try {
+    return await prisma.client.findMany({
+      include: {
+        _count: {
+          select: { projects: true },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    console.error("Error fetching clients (Safe Mode):", error);
+    return [];
+  }
 }
 
 const getStatusColor = (status: string) => {

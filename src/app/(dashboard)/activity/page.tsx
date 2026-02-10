@@ -19,17 +19,24 @@ import {
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 async function getActivities() {
-  return prisma.note.findMany({
-    include: {
-      creator: { select: { name: true } },
-      client: { select: { id: true, name: true } },
-      project: { select: { id: true, name: true } },
-      task: { select: { id: true, title: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+  try {
+    return await prisma.note.findMany({
+      include: {
+        creator: { select: { name: true } },
+        client: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true } },
+        task: { select: { id: true, title: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+  } catch (error) {
+    console.error("Error fetching activities (Safe Mode):", error);
+    return [];
+  }
 }
 
 type Activity = Awaited<ReturnType<typeof getActivities>>[number];

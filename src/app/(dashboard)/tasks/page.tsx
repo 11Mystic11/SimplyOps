@@ -18,17 +18,24 @@ import TaskStatusToggle from "@/components/features/task-status-toggle";
 import TaskActions from "@/components/features/task-actions";
 import { prisma } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 async function getTasks() {
-  return prisma.task.findMany({
-    include: {
-      project: { select: { id: true, name: true } },
-      client: { select: { id: true, name: true } },
-    },
-    orderBy: [
-      { project: { name: "asc" } },
-      { dueDate: "asc" },
-    ],
-  });
+  try {
+    return await prisma.task.findMany({
+      include: {
+        project: { select: { id: true, name: true } },
+        client: { select: { id: true, name: true } },
+      },
+      orderBy: [
+        { project: { name: "asc" } },
+        { dueDate: "asc" },
+      ],
+    });
+  } catch (error) {
+    console.error("Error fetching tasks (Safe Mode):", error);
+    return [];
+  }
 }
 
 type TaskWithRelations = Awaited<ReturnType<typeof getTasks>>[number];
@@ -228,9 +235,8 @@ export default async function TasksPage() {
                       return (
                         <div
                           key={task.id}
-                          className={`flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow ${
-                            overdue ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60" : "hover:bg-muted/50"
-                          }`}
+                          className={`flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow ${overdue ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/60" : "hover:bg-muted/50"
+                            }`}
                         >
                           <div className="flex-1">
                             <div className="flex items-start justify-between mb-2">

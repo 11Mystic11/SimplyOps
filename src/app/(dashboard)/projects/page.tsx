@@ -10,15 +10,22 @@ import NewProjectDialog from "@/components/forms/new-project-dialog";
 import ProjectActions from "@/components/features/project-actions";
 import { prisma } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 async function getProjects() {
-  return prisma.project.findMany({
-    include: {
-      client: { select: { id: true, name: true } },
-      _count: { select: { tasks: true } },
-      tasks: { select: { status: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  try {
+    return await prisma.project.findMany({
+      include: {
+        client: { select: { id: true, name: true } },
+        _count: { select: { tasks: true } },
+        tasks: { select: { status: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    console.error("Error fetching projects (Safe Mode):", error);
+    return [];
+  }
 }
 
 const getStatusColor = (status: string) => {
