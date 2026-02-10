@@ -98,40 +98,44 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Manual cascade: Turso FK constraints use RESTRICT, not CASCADE.
-    // Delete child records in dependency order within a transaction.
-    await prisma.$transaction(async (tx) => {
-      // 1. Delete transactions linked to this client's invoices/subscriptions/expenses
-      const invoiceIds = (await tx.invoice.findMany({ where: { clientId: id }, select: { id: true } })).map(i => i.id);
-      const subscriptionIds = (await tx.subscription.findMany({ where: { clientId: id }, select: { id: true } })).map(s => s.id);
-      const expenseIds = (await tx.expense.findMany({ where: { clientId: id }, select: { id: true } })).map(e => e.id);
-      if (invoiceIds.length) await tx.transaction.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
-      if (subscriptionIds.length) await tx.transaction.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } });
-      if (expenseIds.length) await tx.transaction.deleteMany({ where: { expenseId: { in: expenseIds } } });
+    // Manual cascade: Turso FK constraints use RESTRICT (not CASCADE)
+    // and LibSQL adapter doesn't support interactive transactions.
+    // Delete child records sequentially in dependency order.
 
-      // 2. Delete invoice mirrors and quotes
-      await tx.invoiceMirror.deleteMany({ where: { clientId: id } });
-      await tx.quote.deleteMany({ where: { clientId: id } });
+    // 1. Gather IDs of related records
+    const invoiceIds = (await prisma.invoice.findMany({ where: { clientId: id }, select: { id: true } })).map(i => i.id);
+    const subscriptionIds = (await prisma.subscription.findMany({ where: { clientId: id }, select: { id: true } })).map(s => s.id);
+    const expenseIds = (await prisma.expense.findMany({ where: { clientId: id }, select: { id: true } })).map(e => e.id);
+    const projectIds = (await prisma.project.findMany({ where: { clientId: id }, select: { id: true } })).map(p => p.id);
+    const taskIds = (await prisma.task.findMany({ where: { OR: [{ clientId: id }, ...(projectIds.length ? [{ projectId: { in: projectIds } }] : [])] }, select: { id: true } })).map(t => t.id);
 
-      // 3. Delete notes (client-level, project-level, task-level)
-      const projectIds = (await tx.project.findMany({ where: { clientId: id }, select: { id: true } })).map(p => p.id);
-      const taskIds = (await tx.task.findMany({ where: { clientId: id }, select: { id: true } })).map(t => t.id);
-      await tx.note.deleteMany({ where: { OR: [{ clientId: id }, ...(projectIds.length ? [{ projectId: { in: projectIds } }] : []), ...(taskIds.length ? [{ taskId: { in: taskIds } }] : [])] } });
+    // 2. Delete transactions (deepest leaf — references invoices/subscriptions/expenses)
+    if (invoiceIds.length) await prisma.transaction.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+    if (subscriptionIds.length) await prisma.transaction.deleteMany({ where: { subscriptionId: { in: subscriptionIds } } });
+    if (expenseIds.length) await prisma.transaction.deleteMany({ where: { expenseId: { in: expenseIds } } });
 
-      // 4. Delete tasks, expenses, invoices, subscriptions
-      await tx.task.deleteMany({ where: { OR: [{ clientId: id }, ...(projectIds.length ? [{ projectId: { in: projectIds } }] : [])] } });
-      await tx.expense.deleteMany({ where: { clientId: id } });
-      await tx.invoice.deleteMany({ where: { clientId: id } });
-      await tx.subscription.deleteMany({ where: { clientId: id } });
+    // 3. Delete invoice mirrors and quotes
+    await prisma.invoiceMirror.deleteMany({ where: { clientId: id } });
+    await prisma.quote.deleteMany({ where: { clientId: id } });
 
-      // 5. Delete automation scans, contacts, projects
-      await tx.automationScan.deleteMany({ where: { clientId: id } });
-      await tx.contact.deleteMany({ where: { clientId: id } });
-      await tx.project.deleteMany({ where: { clientId: id } });
+    // 4. Delete notes (references tasks, projects, client)
+    if (taskIds.length) await prisma.note.deleteMany({ where: { taskId: { in: taskIds } } });
+    if (projectIds.length) await prisma.note.deleteMany({ where: { projectId: { in: projectIds } } });
+    await prisma.note.deleteMany({ where: { clientId: id } });
 
-      // 6. Finally delete the client
-      await tx.client.delete({ where: { id } });
-    });
+    // 5. Delete tasks, expenses, invoices, subscriptions
+    await prisma.task.deleteMany({ where: { OR: [{ clientId: id }, ...(projectIds.length ? [{ projectId: { in: projectIds } }] : [])] } });
+    await prisma.expense.deleteMany({ where: { clientId: id } });
+    await prisma.invoice.deleteMany({ where: { clientId: id } });
+    await prisma.subscription.deleteMany({ where: { clientId: id } });
+
+    // 6. Delete automation scans, contacts, projects
+    await prisma.automationScan.deleteMany({ where: { clientId: id } });
+    await prisma.contact.deleteMany({ where: { clientId: id } });
+    await prisma.project.deleteMany({ where: { clientId: id } });
+
+    // 7. Finally delete the client
+    await prisma.client.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
