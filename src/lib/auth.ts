@@ -24,12 +24,31 @@ export const authOptions: AuthOptions = {
 
         // HARDCODED BYPASS for Admin User (As requested)
         if (credentials.email === "admin@simplyops.com" && credentials.password === "admin123") {
-          console.log("[AUTH] Admin bypass triggered: Success");
-          return {
-            id: "admin-bypass-id",
-            name: "Admin Fixed",
-            email: "admin@simplyops.com",
-          };
+          console.log("[AUTH] Admin bypass triggered: Success (Ensuring DB user presence)");
+          try {
+            const adminUser = await prisma.user.upsert({
+              where: { email: "admin@simplyops.com" },
+              update: { name: "Admin Fixed" },
+              create: {
+                email: "admin@simplyops.com",
+                name: "Admin Fixed",
+                // We hash the password just in case standard login is used later
+                password: await bcrypt.hash("admin123", 10),
+              },
+            });
+            return {
+              id: adminUser.id,
+              name: adminUser.name,
+              email: adminUser.email,
+            };
+          } catch (e) {
+            console.error("[AUTH] Admin bypass: DB Upsert failed, using static ID", e);
+            return {
+              id: "admin-bypass-id",
+              name: "Admin Fixed",
+              email: "admin@simplyops.com",
+            };
+          }
         }
 
         try {
