@@ -19,6 +19,25 @@ export const authOptions: AuthOptions = {
           return null;
         }
 
+        // Self-healing: Ensure at least the admin user exists in the DB
+        // This is useful for first-time deployments on Vercel where seed might not have run
+        if (credentials.email === "admin@simplyops.com") {
+          const adminExists = await prisma.user.findUnique({
+            where: { email: "admin@simplyops.com" },
+          });
+
+          if (!adminExists) {
+            const hashedPassword = await bcrypt.hash("admin123", 10);
+            await prisma.user.create({
+              data: {
+                email: "admin@simplyops.com",
+                name: "Admin User",
+                password: hashedPassword,
+              },
+            });
+          }
+        }
+
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
