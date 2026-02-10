@@ -65,54 +65,68 @@ export default async function DashboardPage() {
   const todayEnd = new Date(todayStart);
   todayEnd.setDate(todayEnd.getDate() + 1);
 
-  const [
-    clientCount,
-    activeProjectCount,
-    pendingTaskCount,
-    overdueTasks,
-    todayTasks,
-    atRiskProjects,
-    recentNotes,
-  ] = await Promise.all([
-    prisma.client.count({ where: { status: "active" } }),
-    prisma.project.count({
-      where: { status: { in: ["in_progress", "planning", "review"] } },
-    }),
-    prisma.task.count({
-      where: { status: { in: ["todo", "in_progress"] } },
-    }),
-    prisma.task.findMany({
-      where: {
-        dueDate: { lt: todayStart },
-        status: { not: "completed" },
-      },
-      include: {
-        client: { select: { name: true } },
-      },
-      orderBy: { dueDate: "asc" },
-      take: 5,
-    }),
-    prisma.task.findMany({
-      where: {
-        dueDate: { gte: todayStart, lt: todayEnd },
-        status: { not: "completed" },
-      },
-      orderBy: { dueDate: "asc" },
-      take: 5,
-    }),
-    prisma.project.findMany({
-      where: { status: "at_risk" },
-      include: { client: { select: { name: true } } },
-      take: 5,
-    }),
-    prisma.note.findMany({
-      include: {
-        creator: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-  ]);
+  let clientCount = 0;
+  let activeProjectCount = 0;
+  let pendingTaskCount = 0;
+  let overdueTasks: any[] = [];
+  let todayTasks: any[] = [];
+  let atRiskProjects: any[] = [];
+  let recentNotes: any[] = [];
+
+  try {
+    const results = await Promise.all([
+      prisma.client.count({ where: { status: "active" } }),
+      prisma.project.count({
+        where: { status: { in: ["in_progress", "planning", "review"] } },
+      }),
+      prisma.task.count({
+        where: { status: { in: ["todo", "in_progress"] } },
+      }),
+      prisma.task.findMany({
+        where: {
+          dueDate: { lt: todayStart },
+          status: { not: "completed" },
+        },
+        include: {
+          client: { select: { name: true } },
+        },
+        orderBy: { dueDate: "asc" },
+        take: 5,
+      }),
+      prisma.task.findMany({
+        where: {
+          dueDate: { gte: todayStart, lt: todayEnd },
+          status: { not: "completed" },
+        },
+        orderBy: { dueDate: "asc" },
+        take: 5,
+      }),
+      prisma.project.findMany({
+        where: { status: "at_risk" },
+        include: { client: { select: { name: true } } },
+        take: 5,
+      }),
+      prisma.note.findMany({
+        include: {
+          creator: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+    ]);
+
+    clientCount = results[0];
+    activeProjectCount = results[1];
+    pendingTaskCount = results[2];
+    overdueTasks = results[3];
+    todayTasks = results[4];
+    atRiskProjects = results[5];
+    recentNotes = results[6];
+  } catch (error) {
+    console.error("Dashboard data fetch error (Safe Mode enabled):", error);
+    // Fallback to empty data or mock data as already initialized above
+  }
+
 
   const stats = [
     {
