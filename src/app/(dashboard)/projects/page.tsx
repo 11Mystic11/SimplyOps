@@ -7,6 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle } from "lucide-react";
 import NewProjectDialog from "@/components/forms/new-project-dialog";
+import ProjectActions from "@/components/features/project-actions";
 import { prisma } from "@/lib/db";
 
 async function getProjects() {
@@ -115,6 +116,19 @@ export default async function ProjectsPage() {
                         </Badge>
                       </div>
                     </div>
+                    <ProjectActions
+                      project={{
+                        id: project.id,
+                        name: project.name,
+                        description: project.description,
+                        type: project.type,
+                        status: project.status,
+                        budget: project.budget,
+                        startDate: project.startDate?.toISOString() ?? null,
+                        dueDate: project.dueDate?.toISOString() ?? null,
+                        clientId: project.clientId,
+                      }}
+                    />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

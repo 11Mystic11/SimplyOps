@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model Account {
@@ -212,18 +211,29 @@ model Invoice {
 }
 
 model Subscription {
-  id             String    @id @default(cuid())
-  clientId       String
-  name           String
-  description    String?
-  amount         Float
-  billingCadence String    @default("monthly") // monthly, quarterly, annual
-  status         String    @default("active") // active, paused, cancelled
-  startDate      DateTime  @default(now())
-  nextBilling    DateTime
-  endDate        DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  clientId             String
+  name                 String
+  description          String?
+  amount               Float
+  billingCadence       String    @default("monthly") // monthly, quarterly, annual
+  status               String    @default("active") // active, paused, cancelled
+  startDate            DateTime  @default(now())
+  nextBilling          DateTime
+  endDate              DateTime?
+  stripeSubscriptionId String?   @unique
+  stripeCustomerId     String?
+  planId               String? // "foundation", "momentum", "command"
+  planTier             String? // "Standard", "Advanced", "Enterprise" (Command only)
+  addons               String? // JSON: [{ id, tier }]
+  setupPaid            Boolean   @default(false)
+  contactName          String?
+  contactEmail         String?
+  contactPhone         String?
+  businessName         String?
+  industry             String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
   transactions Transaction[]
@@ -231,6 +241,7 @@ model Subscription {
   @@index([clientId])
   @@index([status])
   @@index([nextBilling])
+  @@index([stripeSubscriptionId])
 }
 
 model Expense {
