@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
     // Self-healing: Ensure the user exists in the DB before creating the client
     const user = await import("@/lib/db").then(m => m.ensureAuthenticatedUser(session));
     const userId = user?.id || session.user.id;
+    console.log("[CLIENT_API] Creating client for user:", userId);
 
     const client = await prisma.client.create({
       data: {
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(client, { status: 201 });
   } catch (error) {
+    console.error("[CLIENT_API] Error Details:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.errors },
@@ -71,9 +73,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error("Error creating client:", error);
     return NextResponse.json(
-      { error: "Failed to create client" },
+      { error: "Failed to create client", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 },
     );
   }
