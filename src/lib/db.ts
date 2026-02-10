@@ -9,9 +9,12 @@ const globalForPrisma = globalThis as unknown as {
 const createPrismaClient = () => {
   const url = process.env.DATABASE_URL
 
-  if (url?.startsWith('libsql:')) {
+  // Turso URLs can start with libsql:// or https://
+  const isLibsql = url?.startsWith('libsql:') || url?.startsWith('https:')
+
+  if (isLibsql) {
     const libsql = createClient({
-      url: url,
+      url: url as string,
       authToken: process.env.TURSO_AUTH_TOKEN,
     })
     const adapter = new PrismaLibSQL(libsql)
