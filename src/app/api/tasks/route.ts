@@ -7,6 +7,7 @@ import { z } from "zod";
 const createTaskSchema = z.object({
   title: z.string().min(1, "Task title is required"),
   description: z.string().optional(),
+  status: z.string().optional(),
   priority: z.enum(["low", "medium", "high"]).optional(),
   dueDate: z.string().optional(),
   projectId: z.string().optional(),
@@ -57,11 +58,11 @@ export async function POST(request: NextRequest) {
       data: {
         title: validatedData.title,
         description: validatedData.description,
-        status: validatedData.status,
-        priority: validatedData.priority,
+        status: validatedData.status || "todo",
+        priority: validatedData.priority || "medium",
         dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
-        projectId: validatedData.projectId,
-        clientId: validatedData.clientId,
+        projectId: validatedData.projectId || undefined,
+        clientId: validatedData.clientId || undefined,
         createdById: userId,
       },
     });
