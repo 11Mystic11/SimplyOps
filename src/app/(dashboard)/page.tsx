@@ -15,12 +15,15 @@ import {
   AlertTriangle,
   Clock,
   Calendar,
-  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { MasterMetrics } from "@/components/dashboard/master-metrics";
 import { RealTimeROI } from "@/components/dashboard/real-time-roi";
+import { SystemHeartbeat } from "@/components/dashboard/system-heartbeat";
+import { OnboardingChecklist } from "@/components/dashboard/onboarding-checklist";
+import { AutomationBlueprint } from "@/components/dashboard/automation-blueprint";
+import { MetricsCharts } from "@/components/dashboard/metrics-charts";
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -188,6 +191,17 @@ export default async function DashboardPage() {
         <RealTimeROI hoursSaved={42} moneySaved={840} multiple={3.2} />
       </div>
 
+      {/* Growth Analytics Charts */}
+      <MetricsCharts />
+
+      {/* System Health & Onboarding */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <SystemHeartbeat />
+        <OnboardingChecklist />
+      </div>
+
+      {/* Automation Blueprint */}
+      <AutomationBlueprint />
 
       {/* Today's Focus & Overdue */}
       <div className="grid gap-4 md:grid-cols-2">

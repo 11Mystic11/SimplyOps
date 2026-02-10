@@ -62,15 +62,66 @@
 }
 
 @layer components {
+  /* Base glass effect */
   .glass {
-    @apply bg-background/60 backdrop-blur-md border border-white/10 dark:border-white/5 shadow-[0_8px_32px_0_rgba(0, 0, 0, 0.37)];
+    @apply bg-background/60 backdrop-blur-md border border-white/10 dark:border-white/5;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
   }
 
+  /* Glass card with hover effects */
   .glass-card {
-    @apply bg-card/40 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-[--radius] transition-all duration-300 hover:shadow-2xl hover:shadow-primary/5 active:scale-[0.98];
+    @apply bg-card/40 backdrop-blur-xl border border-white/10 dark:border-white/5 rounded-[--radius] transition-all duration-300;
+    -webkit-backdrop-filter: blur(24px);
   }
 
+  .glass-card:hover {
+    @apply shadow-2xl shadow-primary/5;
+  }
+
+  .glass-card:active {
+    @apply scale-[0.98];
+  }
+
+  /* Glass sidebar */
+  .glass-sidebar {
+    @apply bg-background/70 backdrop-blur-xl border-r border-white/5;
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* Glass input */
+  .glass-input {
+    @apply bg-background/40 backdrop-blur-sm border border-white/10 rounded-[--radius] transition-all duration-200;
+  }
+
+  .glass-input:focus {
+    @apply border-primary/30 ring-2 ring-primary/10;
+  }
+
+  /* Text gradient */
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400;
+  }
+
+  /* Status indicator pulse */
+  .status-online {
+    @apply relative;
+  }
+
+  .status-online::after {
+    content: '';
+    @apply absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background;
+  }
+
+  /* Metric glow effects */
+  .metric-glow-green {
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.1), 0 0 48px rgba(34, 197, 94, 0.05);
+  }
+
+  .metric-glow-red {
+    box-shadow: 0 0 24px rgba(239, 68, 68, 0.1), 0 0 48px rgba(239, 68, 68, 0.05);
+  }
+
+  .metric-glow-purple {
+    box-shadow: 0 0 24px rgba(147, 51, 234, 0.1), 0 0 48px rgba(147, 51, 234, 0.05);
   }
 }
