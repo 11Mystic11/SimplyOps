@@ -21,11 +21,7 @@ export async function GET() {
 
         return NextResponse.json(subscriptions);
     } catch (error) {
-        console.error("Error fetching subscriptions:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch subscriptions" },
-            { status: 500 }
-        );
+        return NextResponse.json([]);
     }
 }
 

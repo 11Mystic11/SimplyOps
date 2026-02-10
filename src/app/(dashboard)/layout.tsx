@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import DashboardLayout from "@/components/layouts/dashboard-layout";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardRootLayout({
   children,
 }: {
