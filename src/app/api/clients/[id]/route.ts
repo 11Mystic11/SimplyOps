@@ -139,9 +139,10 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting client:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Error deleting client:", msg, error);
     return NextResponse.json(
-      { error: "Failed to delete client" },
+      { error: "Failed to delete client", details: msg },
       { status: 500 },
     );
   }

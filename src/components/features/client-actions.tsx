@@ -46,6 +46,7 @@ export default function ClientActions({ client }: { client: ClientData }) {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showScan, setShowScan] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanResults, setScanResults] = useState<ScanResult[] | null>(null);
@@ -54,14 +55,19 @@ export default function ClientActions({ client }: { client: ClientData }) {
 
   const handleDelete = async () => {
     setIsDeleting(true);
+    setDeleteError(null);
     try {
       const response = await fetch(`/api/clients/${client.id}`, {
         method: "DELETE",
       });
-      if (!response.ok) throw new Error("Failed to delete");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.details || data.error || `HTTP ${response.status}`);
+      }
       setShowDelete(false);
       router.refresh();
-    } catch {
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Delete failed");
       setIsDeleting(false);
     }
   };
@@ -230,6 +236,11 @@ export default function ClientActions({ client }: { client: ClientData }) {
               action cannot be undone and will delete all associated projects,
               tasks, and notes.
             </DialogDescription>
+            {deleteError && (
+              <p className="mt-2 text-sm text-destructive bg-destructive/10 rounded p-2">
+                {deleteError}
+              </p>
+            )}
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDelete(false)}>
